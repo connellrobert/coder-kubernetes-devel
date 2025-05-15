@@ -49,8 +49,8 @@ jobs:
 
       - name: Create release archive
         run: |
-          tar -cf ../kubernetes-template.tar *.tf
-          echo ::set-output name=ARCHIVE_PATH::../kubernetes-template.tar
+          tar -cf kubernetes-devel-template.tar *.tf
+          echo ::set-output name=ARCHIVE_PATH::kubernetes-devel-template.tar
 
 
       - name: Create Release
