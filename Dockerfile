@@ -18,7 +18,13 @@ RUN apt-get update && apt-get install -y \
     software-properties-common \
     lsb-release \
     gnupg \
+    rsync \
+    python3 \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip3 install --no-cache-dir PyYAML
 
 # Install Go
 RUN curl -Lo go.tar.gz https://go.dev/dl/go1.21.0.linux-amd64.tar.gz \
