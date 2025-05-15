@@ -13,7 +13,6 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
       packages: write
 
     steps:
@@ -47,12 +46,26 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.get_version.outputs.VERSION }}
 
-      - name: Create release archive
-        run: |
-          mkdir -p /build
-          tar -cf /build/kubernetes-devel-template.tar *.tf
-          echo ::set-output name=ARCHIVE_PATH::/build/kubernetes-devel-template.tar
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get the version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create release archive
+        id: create_release_archive
+        run: |
+          mkdir build
+          tar -cf build/kubernetes-devel-template.tar *.tf
+          echo ::set-output name=ARCHIVE_PATH::build/kubernetes-devel-template.tar
+          ls -la build
 
       - name: Create Release
         id: create_release
