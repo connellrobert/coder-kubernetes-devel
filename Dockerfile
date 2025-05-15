@@ -2,6 +2,7 @@ FROM ubuntu:22.04
 
 # Avoid prompts from apt
 ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
 
 # Install basic tools and dependencies
 RUN apt-get update && apt-get install -y \
@@ -21,6 +22,10 @@ RUN apt-get update && apt-get install -y \
     rsync \
     python3 \
     python3-pip \
+    tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && dpkg-reconfigure -f noninteractive tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages
