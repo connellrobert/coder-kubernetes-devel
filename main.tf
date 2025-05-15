@@ -108,6 +108,26 @@ data "coder_parameter" "container_image" {
   icon         = "/icon/docker.svg"
 }
 
+data "coder_parameter" "kubernetes_repo" {
+  name         = "kubernetes_repo"
+  display_name = "Kubernetes Repository"
+  description  = "The Git repository URL for Kubernetes. Can be your fork or the main repository."
+  type         = "string"
+  default      = "https://github.com/kubernetes/kubernetes.git"
+  mutable      = true
+  icon         = "/icon/git.svg"
+}
+
+data "coder_parameter" "kubernetes_branch" {
+  name         = "kubernetes_branch"
+  display_name = "Kubernetes Branch"
+  description  = "The Git branch to clone. Use 'master' for the main branch or specify your working branch."
+  type         = "string"
+  default      = "master"
+  mutable      = true
+  icon         = "/icon/git.svg"
+}
+
 # Build custom image for development
 resource "docker_image" "kubernetes_dev" {
   name = "kubernetes-dev:latest"
@@ -128,15 +148,17 @@ resource "coder_agent" "main" {
     #!/bin/bash
     set -euo pipefail
 
-    # Configure Docker
-    echo "export DOCKER_HOST=${data.coder_parameter.docker_host.value}" >> ~/.bashrc
-
     # Clone Kubernetes repository if it doesn't exist
     if [ ! -d "$HOME/go/src/k8s.io/kubernetes" ]; then
       mkdir -p $HOME/go/src/k8s.io
       cd $HOME/go/src/k8s.io
-      git clone https://github.com/kubernetes/kubernetes.git
+      git clone --branch ${data.coder_parameter.kubernetes_branch.value} ${data.coder_parameter.kubernetes_repo.value} kubernetes
       cd kubernetes
+    else
+      cd $HOME/go/src/k8s.io/kubernetes
+      git fetch origin
+      git checkout ${data.coder_parameter.kubernetes_branch.value}
+      git pull origin ${data.coder_parameter.kubernetes_branch.value}
     fi
 
     # Add useful aliases
@@ -147,6 +169,10 @@ resource "coder_agent" "main" {
     # Message to display when workspace is ready
     echo "Your Kubernetes development environment is ready!"
   EOT
+
+  env = {
+    DOCKER_HOST = data.coder_parameter.docker_host.value
+  }
 }
 
 resource "kubernetes_persistent_volume_claim" "home" {
@@ -184,9 +210,12 @@ resource "kubernetes_pod" "main" {
         name  = "CODER_AGENT_TOKEN"
         value = coder_agent.main.token
       }
-      env {
-        name  = "DOCKER_HOST"
-        value = data.coder_parameter.docker_host.value
+      dynamic "env" {
+        for_each = coder_agent.main.env
+        content {
+          name  = env.key
+          value = env.value
+        }
       }
       resources {
         requests = {
