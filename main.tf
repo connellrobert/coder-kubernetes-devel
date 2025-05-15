@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.22.0"
     }
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0.2"
+    }
   }
 }
 
@@ -17,6 +21,8 @@ provider "coder" {}
 provider "kubernetes" {
   # Authenticate via kubeconfig file or in-cluster config
 }
+
+provider "docker" {}
 
 data "coder_workspace" "me" {}
 
@@ -92,6 +98,29 @@ data "coder_parameter" "docker_host" {
   icon         = "/icon/docker.svg"
 }
 
+data "coder_parameter" "container_image" {
+  name         = "container_image"
+  display_name = "Container Image"
+  description  = "The container image to use for the workspace"
+  type         = "string"
+  default      = "ghcr.io/${split("/", data.coder_workspace.me.owner_id)[0]}/templates-dev:latest"
+  mutable      = true
+  icon         = "/icon/docker.svg"
+}
+
+# Build custom image for development
+resource "docker_image" "kubernetes_dev" {
+  name = "kubernetes-dev:latest"
+  build {
+    context = path.module
+    dockerfile = "Dockerfile"
+  }
+  triggers = {
+    # Rebuild image when Dockerfile changes
+    dockerfile = filesha256("${path.module}/Dockerfile")
+  }
+}
+
 resource "coder_agent" "main" {
   os             = "linux"
   arch           = "amd64"
@@ -99,46 +128,21 @@ resource "coder_agent" "main" {
     #!/bin/bash
     set -euo pipefail
 
-    # Install Go
-    curl -Lo go.tar.gz https://go.dev/dl/go1.21.0.linux-amd64.tar.gz
-    sudo rm -rf /usr/local/go
-    sudo tar -C /usr/local -xzf go.tar.gz
-    rm go.tar.gz
-    echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' >> ~/.bashrc
-
-    # Install Docker CLI
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh ./get-docker.sh
-    rm get-docker.sh
-    sudo usermod -aG docker $USER
-
     # Configure Docker
     echo "export DOCKER_HOST=${data.coder_parameter.docker_host.value}" >> ~/.bashrc
 
-    # Install development tools
-    sudo apt-get update
-    sudo apt-get install -y build-essential git curl wget jq vim
-
-    # Configure Git
-    git config --global core.editor "vim"
-    
     # Clone Kubernetes repository if it doesn't exist
     if [ ! -d "$HOME/go/src/k8s.io/kubernetes" ]; then
       mkdir -p $HOME/go/src/k8s.io
       cd $HOME/go/src/k8s.io
       git clone https://github.com/kubernetes/kubernetes.git
       cd kubernetes
-      ./hack/install-etcd.sh
     fi
 
     # Add useful aliases
     echo 'alias k=kubectl' >> ~/.bashrc
     echo 'source <(kubectl completion bash)' >> ~/.bashrc
     echo 'complete -o default -F __start_kubectl k' >> ~/.bashrc
-
-    # Install development dependencies
-    cd $HOME/go/src/k8s.io/kubernetes
-    make
 
     # Message to display when workspace is ready
     echo "Your Kubernetes development environment is ready!"
@@ -168,12 +172,13 @@ resource "kubernetes_pod" "main" {
   }
   spec {
     security_context {
-      run_as_user = "1000"
-      fs_group    = "1000"
+      run_as_user = 1000
+      run_as_group = 0  # root group
+      fs_group    = 1000
     }
     container {
       name    = "dev"
-      image   = "ubuntu:22.04"
+      image   = data.coder_parameter.container_image.value
       command = ["sh", "-c", coder_agent.main.init_script]
       env {
         name  = "CODER_AGENT_TOKEN"
