@@ -48,9 +48,7 @@ jobs:
             org.opencontainers.image.version=${{ steps.get_version.outputs.VERSION }}
 
       - name: Create release archive
-        run: |
-          cd kubernetes
-          tar -czf ../kubernetes-template.tar.gz *.tf
+        run: tar -czf ../kubernetes-template.tar.gz *.tf
 
       - name: Create Release
         id: create_release
