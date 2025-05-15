@@ -50,6 +50,12 @@ variable "disk_size" {
   default     = "50"
 }
 
+variable "docker_host" {
+  type        = string
+  description = "Docker daemon address to connect to (e.g., 'unix:///var/run/docker.sock' or 'tcp://localhost:2375')"
+  default     = "unix:///var/run/docker.sock"
+}
+
 resource "coder_agent" "main" {
   os             = "linux"
   arch           = "amd64"
@@ -64,9 +70,18 @@ resource "coder_agent" "main" {
     rm go.tar.gz
     echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' >> ~/.bashrc
 
+    # Install Docker CLI
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh ./get-docker.sh
+    rm get-docker.sh
+    sudo usermod -aG docker $USER
+
+    # Configure Docker
+    echo "export DOCKER_HOST=${var.docker_host}" >> ~/.bashrc
+
     # Install development tools
     sudo apt-get update
-    sudo apt-get install -y build-essential git curl wget jq vim docker.io
+    sudo apt-get install -y build-essential git curl wget jq vim
 
     # Configure Git
     git config --global core.editor "vim"
@@ -127,6 +142,10 @@ resource "kubernetes_pod" "main" {
       env {
         name  = "CODER_AGENT_TOKEN"
         value = coder_agent.main.token
+      }
+      env {
+        name  = "DOCKER_HOST"
+        value = var.docker_host
       }
       resources {
         requests = {
