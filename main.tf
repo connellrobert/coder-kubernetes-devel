@@ -20,40 +20,76 @@ provider "kubernetes" {
 
 data "coder_workspace" "me" {}
 
-variable "use_kubeconfig" {
-  type        = bool
-  description = "Use local kubeconfig file for Kubernetes cluster authentication"
-  default     = false
+resource "coder_parameter" "use_kubeconfig" {
+  name         = "use_kubeconfig"
+  display_name = "Use Local Kubeconfig"
+  description  = "Use local kubeconfig file for Kubernetes cluster authentication"
+  type         = "bool"
+  default      = false
+  mutable      = true
+  icon         = "/icon/kubernetes.svg"
 }
 
-variable "namespace" {
-  type        = string
-  description = "The namespace to create workspaces in (must exist prior to creating workspaces)"
-  default     = "coder-workspaces"
+resource "coder_parameter" "namespace" {
+  name         = "namespace"
+  display_name = "Kubernetes Namespace"
+  description  = "The namespace to create workspaces in (must exist prior to creating workspaces)"
+  type         = "string"
+  default      = "coder-workspaces"
+  mutable      = true
+  icon         = "/icon/namespace.svg"
 }
 
-variable "cpu" {
-  type        = string
-  description = "CPU cores for the workspace"
-  default     = "4"
+resource "coder_parameter" "cpu" {
+  name         = "cpu"
+  display_name = "CPU Cores"
+  description  = "Number of CPU cores for the workspace"
+  type         = "number"
+  default      = 4
+  mutable      = true
+  icon         = "/icon/cpu.svg"
+  validation {
+    min = 1
+    max = 8
+  }
 }
 
-variable "memory" {
-  type        = string
-  description = "Memory in GB for the workspace"
-  default     = "8"
+resource "coder_parameter" "memory" {
+  name         = "memory"
+  display_name = "Memory (GB)"
+  description  = "Memory in GB for the workspace"
+  type         = "number"
+  default      = 8
+  mutable      = true
+  icon         = "/icon/memory.svg"
+  validation {
+    min = 4
+    max = 16
+  }
 }
 
-variable "disk_size" {
-  type        = string
-  description = "Disk size in GB for the workspace"
-  default     = "50"
+resource "coder_parameter" "disk_size" {
+  name         = "disk_size"
+  display_name = "Disk Size (GB)"
+  description  = "Disk size in GB for the workspace"
+  type         = "number"
+  default      = 50
+  mutable      = true
+  icon         = "/icon/disk.svg"
+  validation {
+    min = 20
+    max = 100
+  }
 }
 
-variable "docker_host" {
-  type        = string
-  description = "Docker daemon address to connect to (e.g., 'unix:///var/run/docker.sock' or 'tcp://localhost:2375')"
-  default     = "unix:///var/run/docker.sock"
+resource "coder_parameter" "docker_host" {
+  name         = "docker_host"
+  display_name = "Docker Host"
+  description  = "Docker daemon address to connect to (e.g., 'unix:///var/run/docker.sock' or 'tcp://localhost:2375')"
+  type         = "string"
+  default      = "unix:///var/run/docker.sock"
+  mutable      = true
+  icon         = "/icon/docker.svg"
 }
 
 resource "coder_agent" "main" {
@@ -77,7 +113,7 @@ resource "coder_agent" "main" {
     sudo usermod -aG docker $USER
 
     # Configure Docker
-    echo "export DOCKER_HOST=${var.docker_host}" >> ~/.bashrc
+    echo "export DOCKER_HOST=${coder_parameter.docker_host.value}" >> ~/.bashrc
 
     # Install development tools
     sudo apt-get update
@@ -112,13 +148,13 @@ resource "coder_agent" "main" {
 resource "kubernetes_persistent_volume_claim" "home" {
   metadata {
     name      = "coder-${data.coder_workspace.me.owner}-${data.coder_workspace.me.name}-home"
-    namespace = var.namespace
+    namespace = coder_parameter.namespace.value
   }
   spec {
     access_modes = ["ReadWriteOnce"]
     resources {
       requests = {
-        storage = "${var.disk_size}Gi"
+        storage = "${coder_parameter.disk_size.value}Gi"
       }
     }
   }
@@ -128,7 +164,7 @@ resource "kubernetes_pod" "main" {
   count = data.coder_workspace.me.start_count
   metadata {
     name      = "coder-${data.coder_workspace.me.owner}-${data.coder_workspace.me.name}"
-    namespace = var.namespace
+    namespace = coder_parameter.namespace.value
   }
   spec {
     security_context {
@@ -145,16 +181,16 @@ resource "kubernetes_pod" "main" {
       }
       env {
         name  = "DOCKER_HOST"
-        value = var.docker_host
+        value = coder_parameter.docker_host.value
       }
       resources {
         requests = {
-          cpu    = "${var.cpu}"
-          memory = "${var.memory}Gi"
+          cpu    = "${coder_parameter.cpu.value}"
+          memory = "${coder_parameter.memory.value}Gi"
         }
         limits = {
-          cpu    = "${var.cpu}"
-          memory = "${var.memory}Gi"
+          cpu    = "${coder_parameter.cpu.value}"
+          memory = "${coder_parameter.memory.value}Gi"
         }
       }
       volume_mount {
