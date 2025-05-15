@@ -20,7 +20,7 @@ provider "kubernetes" {
 
 data "coder_workspace" "me" {}
 
-resource "coder_parameter" "use_kubeconfig" {
+data "coder_parameter" "use_kubeconfig" {
   name         = "use_kubeconfig"
   display_name = "Use Local Kubeconfig"
   description  = "Use local kubeconfig file for Kubernetes cluster authentication"
@@ -30,7 +30,7 @@ resource "coder_parameter" "use_kubeconfig" {
   icon         = "/icon/kubernetes.svg"
 }
 
-resource "coder_parameter" "namespace" {
+data "coder_parameter" "namespace" {
   name         = "namespace"
   display_name = "Kubernetes Namespace"
   description  = "The namespace to create workspaces in (must exist prior to creating workspaces)"
@@ -40,7 +40,7 @@ resource "coder_parameter" "namespace" {
   icon         = "/icon/namespace.svg"
 }
 
-resource "coder_parameter" "cpu" {
+data "coder_parameter" "cpu" {
   name         = "cpu"
   display_name = "CPU Cores"
   description  = "Number of CPU cores for the workspace"
@@ -54,7 +54,7 @@ resource "coder_parameter" "cpu" {
   }
 }
 
-resource "coder_parameter" "memory" {
+data "coder_parameter" "memory" {
   name         = "memory"
   display_name = "Memory (GB)"
   description  = "Memory in GB for the workspace"
@@ -68,7 +68,7 @@ resource "coder_parameter" "memory" {
   }
 }
 
-resource "coder_parameter" "disk_size" {
+data "coder_parameter" "disk_size" {
   name         = "disk_size"
   display_name = "Disk Size (GB)"
   description  = "Disk size in GB for the workspace"
@@ -82,7 +82,7 @@ resource "coder_parameter" "disk_size" {
   }
 }
 
-resource "coder_parameter" "docker_host" {
+data "coder_parameter" "docker_host" {
   name         = "docker_host"
   display_name = "Docker Host"
   description  = "Docker daemon address to connect to (e.g., 'unix:///var/run/docker.sock' or 'tcp://localhost:2375')"
@@ -113,7 +113,7 @@ resource "coder_agent" "main" {
     sudo usermod -aG docker $USER
 
     # Configure Docker
-    echo "export DOCKER_HOST=${coder_parameter.docker_host.value}" >> ~/.bashrc
+    echo "export DOCKER_HOST=${data.coder_parameter.docker_host.value}" >> ~/.bashrc
 
     # Install development tools
     sudo apt-get update
@@ -148,13 +148,13 @@ resource "coder_agent" "main" {
 resource "kubernetes_persistent_volume_claim" "home" {
   metadata {
     name      = "coder-${data.coder_workspace.me.owner}-${data.coder_workspace.me.name}-home"
-    namespace = coder_parameter.namespace.value
+    namespace = data.coder_parameter.namespace.value
   }
   spec {
     access_modes = ["ReadWriteOnce"]
     resources {
       requests = {
-        storage = "${coder_parameter.disk_size.value}Gi"
+        storage = "${data.coder_parameter.disk_size.value}Gi"
       }
     }
   }
@@ -164,7 +164,7 @@ resource "kubernetes_pod" "main" {
   count = data.coder_workspace.me.start_count
   metadata {
     name      = "coder-${data.coder_workspace.me.owner}-${data.coder_workspace.me.name}"
-    namespace = coder_parameter.namespace.value
+    namespace = data.coder_parameter.namespace.value
   }
   spec {
     security_context {
@@ -181,16 +181,16 @@ resource "kubernetes_pod" "main" {
       }
       env {
         name  = "DOCKER_HOST"
-        value = coder_parameter.docker_host.value
+        value = data.coder_parameter.docker_host.value
       }
       resources {
         requests = {
-          cpu    = "${coder_parameter.cpu.value}"
-          memory = "${coder_parameter.memory.value}Gi"
+          cpu    = "${data.coder_parameter.cpu.value}"
+          memory = "${data.coder_parameter.memory.value}Gi"
         }
         limits = {
-          cpu    = "${coder_parameter.cpu.value}"
-          memory = "${coder_parameter.memory.value}Gi"
+          cpu    = "${data.coder_parameter.cpu.value}"
+          memory = "${data.coder_parameter.memory.value}Gi"
         }
       }
       volume_mount {
