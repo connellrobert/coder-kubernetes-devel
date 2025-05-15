@@ -131,29 +131,24 @@ resource "coder_agent" "main" {
     set -euo pipefail
 
     # Clone Kubernetes repository if it doesn't exist
-    if [ ! -d "$HOME/go/src/k8s.io/kubernetes" ]; then
-      mkdir -p $HOME/go/src/k8s.io
-      cd $HOME/go/src/k8s.io
+    if [ ! -d "$HOME/kubernetes" ]; then
+      cd $HOME
       git clone --branch ${data.coder_parameter.kubernetes_branch.value} ${data.coder_parameter.kubernetes_repo.value} kubernetes
       cd kubernetes
     else
-      cd $HOME/go/src/k8s.io/kubernetes
+      cd $HOME/kubernetes
       git fetch origin
       git checkout ${data.coder_parameter.kubernetes_branch.value}
       git pull origin ${data.coder_parameter.kubernetes_branch.value}
     fi
-
-    # Add useful aliases
-    echo 'alias k=kubectl' >> ~/.bashrc
-    echo 'source <(kubectl completion bash)' >> ~/.bashrc
-    echo 'complete -o default -F __start_kubectl k' >> ~/.bashrc
-
+    
     # Message to display when workspace is ready
     echo "Your Kubernetes development environment is ready!"
   EOT
 
   env = {
     DOCKER_HOST = data.coder_parameter.docker_host.value
+    GOPATH = "/home/coder"
   }
 }
 
