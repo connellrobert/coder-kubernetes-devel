@@ -36,7 +36,7 @@ data "coder_parameter" "namespace" {
   display_name = "Kubernetes Namespace"
   description  = "The namespace to create workspaces in (must exist prior to creating workspaces)"
   type         = "string"
-  default      = "coder-workspaces"
+  default      = "coder"
   mutable      = true
   icon         = "/icon/namespace.svg"
 }
@@ -98,7 +98,7 @@ data "coder_parameter" "container_image" {
   display_name = "Container Image"
   description  = "The container image to use for the workspace"
   type         = "string"
-  default      = "ghcr.io/${split("/", data.coder_workspace.me.owner_id)[0]}/templates-dev:latest"
+  default      = "ghcr.io/connellrobert/kubernetes-coder-dev:latest"
   mutable      = true
   icon         = "/icon/docker.svg"
 }
