@@ -48,11 +48,14 @@ jobs:
             org.opencontainers.image.version=${{ steps.get_version.outputs.VERSION }}
 
       - name: Create release archive
-        run: tar -czf ../kubernetes-template.tar.gz *.tf
+        run: |
+          tar -cf ../kubernetes-template.tar *.tf
+          echo ::set-output name=ARCHIVE_PATH::../kubernetes-template.tar
+
 
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          files: kubernetes-template.tar.gz
+          files: ${{ steps.create_release_archive.outputs.ARCHIVE_PATH }}
           generate_release_notes: true 
