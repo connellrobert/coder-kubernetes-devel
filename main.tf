@@ -9,10 +9,6 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.22.0"
     }
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0.2"
-    }
   }
 }
 
@@ -22,7 +18,6 @@ provider "kubernetes" {
   # Authenticate via kubeconfig file or in-cluster config
 }
 
-provider "docker" {}
 
 data "coder_workspace" "me" {}
 
@@ -126,19 +121,6 @@ data "coder_parameter" "kubernetes_branch" {
   default      = "master"
   mutable      = true
   icon         = "/icon/git.svg"
-}
-
-# Build custom image for development
-resource "docker_image" "kubernetes_dev" {
-  name = "kubernetes-dev:latest"
-  build {
-    context = path.module
-    dockerfile = "Dockerfile"
-  }
-  triggers = {
-    # Rebuild image when Dockerfile changes
-    dockerfile = filesha256("${path.module}/Dockerfile")
-  }
 }
 
 resource "coder_agent" "main" {
